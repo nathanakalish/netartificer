@@ -15,7 +15,7 @@ get_lldp_info() {
 }
 
 # Print a nice banner with whatever info we've got so far
-print_dynamic_banner() {
+vlan_banner() {
     show_banner
     [[ -n "$1" ]] && detected_name="$1"
     [[ -n "$2" ]] && detected_ip="$2"
@@ -61,7 +61,7 @@ port_in_range() {
 switch_vlan() {
     # 1. Try to auto-detect switch info with LLDP
     IFS='|' read -r detected_name detected_ip detected_port detected_vendor <<< "$(get_lldp_info)"
-    print_dynamic_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
+    vlan_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
 
     # 2. Ask user if the detected switch is right
     if [[ -n "$detected_name" && -n "$detected_ip" ]]; then
@@ -80,7 +80,7 @@ switch_vlan() {
     # 2b. If we didn't detect, ask for details
     if [[ -z "$detected_ip" ]]; then
         while true; do
-            print_dynamic_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
+            vlan_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
             read -e -rp "Enter switch management IP: " ip
             [[ "$ip" == "qq" ]] && return
             ip=$(echo "$ip" | tr -d ' ')
@@ -88,14 +88,14 @@ switch_vlan() {
         done
     fi
     if [[ -z "$detected_name" ]]; then
-        print_dynamic_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
+        vlan_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
         read -e -rp "Enter switch name (optional): " name
         [[ "$name" == "qq" ]] && return
         detected_name="$name"
     fi
     if [[ -z "$detected_vendor" ]]; then
         while true; do
-            print_dynamic_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
+            vlan_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
             read -e -rp "Enter switch vendor (Cisco/Aruba/Netgear): " vendor
             [[ "$vendor" == "qq" ]] && return
             vendor=$(echo "$vendor" | tr -d ' ')
@@ -105,7 +105,7 @@ switch_vlan() {
 
     # 4. Ask for SSH username (default to $SSH_USER)
     while true; do
-        print_dynamic_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
+        vlan_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
         read -e -rp "SSH Username [default: $SSH_USER]: " input_user
         [[ "$input_user" == "qq" ]] && return
         input_user=$(echo "$input_user" | tr -d ' ')
@@ -136,7 +136,7 @@ switch_vlan() {
 
     # 6. Ask for port or port range
     while true; do
-        print_dynamic_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
+        vlan_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
         read -e -rp "Enter first port (e.g., 1/1/29 or 29): " port1
         [[ "$port1" == "qq" ]] && return
         port1=$(echo "$port1" | tr -d ' ')
@@ -194,7 +194,7 @@ switch_vlan() {
     fi
 
     # 8. Ask for port mode and VLANs
-    print_dynamic_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
+    vlan_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
     echo -e "${BLUE}Select port mode:${NC}\n1) Trunk\n2) Access"
     while true; do
         read -e -rp "Enter choice [1-2]: " mode
@@ -264,7 +264,7 @@ switch_vlan() {
 
     # 10. Actually send the commands to the switch (but don't save yet)
     log_out=""
-    print_dynamic_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
+    vlan_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
     echo -e "${BLUE}Sending configuration to $detected_ip...${NC}"
     if [[ "$detected_vendor" == "Aruba" ]]; then
         # For Aruba, send commands as a block (heredoc style)
@@ -290,7 +290,7 @@ EOF
 
     # 11. Ask user if it worked before saving
     while true; do
-        print_dynamic_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
+        vlan_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
         read -e -rp "Did the configuration apply as intended? (Y/n/qq): " ok
         ok=${ok:-y}
         case "$ok" in
@@ -309,7 +309,7 @@ EOF
         if [[ $? -eq 0 ]]; then
             break
         else
-            print_dynamic_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
+            vlan_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
             echo -e "${RED}Could not connect to the switch at $detected_ip after configuration.${NC}"
             read -e -rp "Retry connection? (y/n): " retry
             case "$retry" in
@@ -320,14 +320,14 @@ EOF
         fi
     done
     # 12. Save the config (new SSH session)
-    print_dynamic_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
+    vlan_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
     echo -e "${BLUE}Writing configuration to switch...${NC}"
     if [[ -z "$SWITCH_PASSWORD" ]]; then
         ssh -tt -o StrictHostKeyChecking=no "$SSH_USER@$detected_ip" "$save_cmd" >/dev/null 2>&1
     else
         sshpass -p "$SWITCH_PASSWORD" ssh -tt -o StrictHostKeyChecking=no "$SSH_USER@$detected_ip" "$save_cmd" >/dev/null 2>&1
     fi
-    print_dynamic_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
+    vlan_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
     echo -e "${GREEN}Configuration written successfully.${NC}"
     # 13. All done!
     echo -e "${GREEN}Press any key to return to menu...${NC}"

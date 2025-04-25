@@ -13,7 +13,7 @@ get_lldp_info() {
 }
 
 # Print a nice banner with detected or entered switch info
-print_dynamic_banner() {
+cable_banner() {
     show_banner
     [[ -n "$1" ]] && detected_name="$1"
     [[ -n "$2" ]] && detected_ip="$2"
@@ -60,7 +60,7 @@ cable_test() {
     while true; do
         # Try to auto-detect switch info using LLDP
         IFS='|' read -r detected_name detected_ip detected_port detected_vendor <<< "$(get_lldp_info)"
-        print_dynamic_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
+        cable_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
 
         # If switch info is detected, confirm with the user
         if [[ -n "$detected_name" && -n "$detected_ip" ]]; then
@@ -78,7 +78,7 @@ cable_test() {
 
         # Prompt for switch IP if not detected or confirmed
         if [[ -z "$detected_ip" ]]; then
-            print_dynamic_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
+            cable_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
             while true; do
                 read -e -rp "Enter switch management IP: " ip
                 [[ "$ip" == "qq" ]] && return
@@ -88,7 +88,7 @@ cable_test() {
 
         # Prompt for switch name if not detected
         if [[ -z "$detected_name" ]]; then
-            print_dynamic_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
+            cable_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
             read -e -rp "Enter switch name (optional): " name
             [[ "$name" == "qq" ]] && return
             detected_name="$name"
@@ -96,9 +96,9 @@ cable_test() {
 
         # Prompt for switch vendor if not detected
         if [[ -z "$detected_vendor" ]]; then
-            print_dynamic_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
+            cable_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
             while true; do
-                print_dynamic_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
+                cable_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
                 read -e -rp "Enter switch vendor (Cisco/Aruba/Netgear): " vendor
                 [[ "$vendor" == "qq" ]] && return
                 valid_vendor "$vendor" && detected_vendor="$vendor" && break || echo -e "${RED}Invalid vendor.${NC} Only Cisco, Aruba, and Netgear are supported. Use qq to quit."
@@ -106,7 +106,7 @@ cable_test() {
         fi
 
         # Prompt for SSH username and test SSH connection
-        print_dynamic_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
+        cable_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
         read -e -rp "SSH Username [default: $SSH_USER]: " input_user
         [[ "$input_user" == "qq" ]] && return
         [[ -z "$input_user" ]] && input_user="$SSH_USER"
@@ -132,7 +132,7 @@ cable_test() {
         fi
 
         # Prompt for port to test
-        print_dynamic_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
+        cable_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
         while true; do
             read -e -rp "Enter port to test (e.g., 1/1/13 or 13): " port
             [[ "$port" == "qq" ]] && return
@@ -145,7 +145,7 @@ cable_test() {
         if [[ "$detected_ip" == "$detected_ip" && -n "$detected_port" ]]; then
             curr_port_fmt=$(format_port "$detected_port")
             if [[ "$curr_port_fmt" == "$port_fmt" ]]; then
-                print_dynamic_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
+                cable_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
                 while true; do
                     echo -e "${YELLOW}Warning: You are testing the port you are connected to ($curr_port_fmt)!${NC}"
                     read -e -rp "Proceed anyway? (y/n/qq): " override
@@ -159,7 +159,7 @@ cable_test() {
         fi
 
         # Run the cable test based on the detected vendor
-        print_dynamic_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
+        cable_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
         echo -e "${BLUE}Running cable test.${NC}"
         case "$detected_vendor" in
             Aruba)
@@ -180,7 +180,7 @@ EOF
                     )
                 fi
                 [[ "${LOGGING:-enabled}" == "enabled" ]] && log "Cable test started on $detected_ip port $port_fmt\nSSH output:\n$log_out1"
-                print_dynamic_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
+                cable_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
                 echo -e "${BLUE}Waiting for test to complete...${NC}"
                 sleep 10
                 if [[ -z "$SWITCH_PASSWORD" ]]; then
@@ -201,7 +201,7 @@ EOF
                     # fallback: show everything between 'diag cable show' and 'exit'
                     result=$(echo "$log_out2" | sed -n '/diag cable show/,/exit/p' | sed '1d;$d')
                 fi
-                print_dynamic_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
+                cable_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
                 # Only show the first 7 lines of the output of 'diag cable show' and format it
                 echo -e "${GREEN}Cable test result for $port_fmt:${NC}"
                 echo "$result" | head -n 7 | awk '
@@ -237,7 +237,7 @@ EOF
         echo -e "${GREEN}Press any key to continue...${NC}"
         read -n 1 -s
         echo ""
-        print_dynamic_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
+        cable_banner "$detected_name" "$detected_ip" "$detected_port" "$detected_vendor"
         while true; do
             read -e -rp "Run another test? (y/n): " test_again
             case "$test_again" in

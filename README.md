@@ -38,8 +38,8 @@ NetArtificer is a Bash-powered network toolkit for quick diagnostics, switch wra
    ```sh
    git clone https://github.com/nathanakalish/netartificer.git
    cd netartificer
-   ```
-2. Make the main script executable:
+      ```
+   2. Make the main script executable:
    ```sh
    chmod +x netartificer.sh
    ```
@@ -55,6 +55,16 @@ NetArtificer is a Bash-powered network toolkit for quick diagnostics, switch wra
 - Run with no arguments for the menu.
 - Use `--help` for command-line options.
 - You can type `qq` at most prompts to bail out to the main menu.
+
+## Screenshots
+
+Here are some screenshots of NetArtificer in action:
+
+![Main Menu](screenshots/main-menu.png)
+![Cable Diagnostics](screenshots/tdr-diagnostics.png)
+![VLAN Helper](screenshots/vlan-helper.png)
+![LLDP Info](screenshots/lldp-info.png)
+![Ping Sweep](screenshots/ping-sweep.png)
 
 ## Notes & Warnings
 - **Cisco and Netgear support is experimental!** I only have Aruba switches to test on, so YMMV with other vendors.
