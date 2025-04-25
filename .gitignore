@@ -1,0 +1,3 @@
+# Ignore log files and sensitive config
+*.log
+settings.conf
