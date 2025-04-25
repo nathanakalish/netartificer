@@ -60,11 +60,10 @@ NetArtificer is a Bash-powered network toolkit for quick diagnostics, switch wra
 
 Here are some screenshots of NetArtificer in action:
 
-![Main Menu](screenshots/main-menu.png)
-![Cable Diagnostics](screenshots/tdr-diagnostics.png)
-![VLAN Helper](screenshots/vlan-helper.png)
-![LLDP Info](screenshots/lldp-info.png)
-![Ping Sweep](screenshots/ping-sweep.png)
+![Main Menu](screenshots/mainmenu.png)
+![Cable Diagnostics](screenshots/cabletest.png)
+![Port Scan](screenshots/portscan.png)
+![LLDP Info](screenshots/lldp.png)
 
 ## Notes & Warnings
 - **Cisco and Netgear support is experimental!** I only have Aruba switches to test on, so YMMV with other vendors.
