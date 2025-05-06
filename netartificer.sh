@@ -216,13 +216,14 @@ while true; do
     echo -e "${BLUE}1)${NC} Show LLDP Information"
     echo -e "${BLUE}2)${NC} Show ARP Table"
     echo -e "${BLUE}3)${NC} Switch VLAN Configuration Utility"
-    echo -e "${BLUE}4)${NC} Cable Tester"
-    echo -e "${BLUE}5)${NC} Network Utilities"
-    echo -e "${BLUE}6)${NC} Refresh Interfaces"
-    echo -e "${BLUE}7)${NC} Settings Configuration"
+    echo -e "${BLUE}4)${NC} LAG Configuration Utility"
+    echo -e "${BLUE}5)${NC} Cable Tester"
+    echo -e "${BLUE}6)${NC} Network Utilities"
+    echo -e "${BLUE}7)${NC} Refresh Interfaces"
+    echo -e "${BLUE}8)${NC} Settings Configuration"
     echo -e "${BLUE}0)${NC} Exit"
     echo ""
-    read -e -rp "Enter your choice [0-7]: " choice
+    read -e -rp "Enter your choice [0-8]: " choice
     case $choice in
         1)
             display_lldp_info; log "Displayed LLDP information.";;
@@ -231,12 +232,14 @@ while true; do
         3)
             switch_vlan;;
         4)
-            cable_test; log "Executed Cable Tester utility.";;
+            switch_lag;;
         5)
-            network_utilities_menu;;
+            cable_test; log "Executed Cable Tester utility.";;
         6)
-            log "Interfaces refreshed.";;
+            network_utilities_menu;;
         7)
+            log "Interfaces refreshed.";;
+        8)
             configure_settings;;
         0)
             clear; echo -e "${GREEN}Goodbye!${NC}"; log "User exited the script."; exit 0;;

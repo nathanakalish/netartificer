@@ -1,5 +1,7 @@
 # NetArtificer
 
+Artificers use ingenuity and magic to unlock extraordinary capabilities in ~~objects~~ network switches.
+
 NetArtificer is a Bash-powered network toolkit for quick diagnostics, switch wrangling, and troubleshooting. It's menu-driven, works on Linux and macOS, and is mostly tested on Aruba switches (Cisco/Netgear support is there, but not guaranteed—I've only got Aruba gear to play with!).
 
 ## Why use NetArtificer?
