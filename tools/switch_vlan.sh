@@ -3,58 +3,10 @@
 
 # Assumes: LOGGING, LOG_FILE, SSH_USER, show_banner, log, and color vars are sourced from main script
 
-# Helper: Grab LLDP info and pull out the details we care about
-get_lldp_info() {
-    local lldp_info lldp_name lldp_ip lldp_port lldp_vendor
-    lldp_info=$(lldpctl 2>/dev/null)
-    lldp_name=$(echo "$lldp_info" | grep -i "SysName" | head -n1 | awk -F': ' '{print $2}' | xargs)
-    lldp_ip=$(echo "$lldp_info" | grep -i "MgmtIP" | head -n1 | awk -F': ' '{print $2}' | xargs)
-    lldp_port=$(echo "$lldp_info" | grep -i "PortDescr" | head -n1 | awk -F': ' '{print $2}' | xargs)
-    lldp_vendor=$(echo "$lldp_info" | grep -i "SysDescr" | awk -F': ' '{print $2}' | grep -i -E "Cisco|Aruba|Netgear" | head -n1 | awk '{print $1}')
-    echo "$lldp_name|$lldp_ip|$lldp_port|$lldp_vendor"
-}
 
-# Print a nice banner with whatever info we've got so far
+# Banner helper using common functions
 vlan_banner() {
-    show_banner
-    [[ -n "$1" ]] && detected_name="$1"
-    [[ -n "$2" ]] && detected_ip="$2"
-    [[ -n "$3" ]] && detected_port="$3"
-    [[ -n "$4" ]] && detected_vendor="$4"
-    [ -n "$detected_name" ] && echo -e "${BLUE}Switch Name:${NC} $detected_name"
-    [ -n "$detected_ip" ] && echo -e "${BLUE}Management IP:${NC} $detected_ip"
-    [ -n "$detected_port" ] && echo -e "${BLUE}Connected Port:${NC} $detected_port"
-    [ -n "$detected_vendor" ] && echo -e "${BLUE}Vendor:${NC} $detected_vendor"
-    echo
-}
-
-# Just checks if the string looks like an IP address
-valid_ip() {
-    [[ $1 =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]
-}
-
-# Only allow Cisco, Aruba, or Netgear for vendor
-valid_vendor() {
-    [[ $1 =~ ^(Cisco|Aruba|Netgear)$ ]]
-}
-
-# Checks if the port looks like a valid format (e.g. 1/1/29 or 29)
-valid_port() {
-    [[ $1 =~ ^([0-9]+(/[0-9]+){0,2})$ ]]
-}
-
-# If port is just a number, make it look like 1/1/29
-format_port() {
-    [[ $1 =~ "/" ]] && echo "$1" || echo "1/1/$1"
-}
-
-# Checks if a port is in a given range (for warning if you're about to cut yourself off)
-port_in_range() {
-    local port="$1"; local start="$2"; local end="$3"
-    local p=$(echo "$port" | awk -F'/' '{print $NF}')
-    local s=$(echo "$start" | awk -F'/' '{print $NF}')
-    local e=$(echo "$end" | awk -F'/' '{print $NF}')
-    [[ $p -ge $s && $p -le $e ]]
+    print_switch_banner "$@"
 }
 
 # Main function for the VLAN switcher

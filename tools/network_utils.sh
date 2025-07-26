@@ -566,10 +566,3 @@ snmp_monitor() {
     read -n 1 -s
 }
 
-# log: Write a message to the log file if logging is on
-log() {
-    if [ "${LOGGING:-enabled}" = "enabled" ]; then
-        local message="$1"
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] $message" >> "$LOG_FILE"
-    fi
-}
