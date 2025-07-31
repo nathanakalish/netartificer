@@ -5,7 +5,7 @@
 OS_TYPE="$(uname -s)"
 
 # List of dependencies for the different tools in the script
-DEPS=("lldpd" "ssh" "arp" "awk" "sed" "grep" "ping" "dig" "sshpass" "wakeonlan" "speedtest-cli" "nmap" "mtr" "snmpget" "whois")
+DEPS=("lldpd" "ssh" "arp" "awk" "sed" "grep" "ping" "dig" "sshpass" "wakeonlan" "speedtest-cli" "nmap" "mtr" "snmpget" "whois" "brctl" "hostapd")
 
 check_dependencies() {
     show_banner
@@ -66,6 +66,8 @@ check_dependencies() {
                         apt_pkgs+=("dnsutils")
                     elif [ "$dep" = "snmpget" ]; then
                         apt_pkgs+=("snmp")
+                    elif [ "$dep" = "brctl" ]; then
+                        apt_pkgs+=("bridge-utils")
                     else
                         apt_pkgs+=("$dep")
                     fi
