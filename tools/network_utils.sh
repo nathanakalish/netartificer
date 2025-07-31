@@ -200,7 +200,9 @@ display_lldp_info() {
         fi
         echo -e "${BLUE}Local Interface:${NC} ${iface:-Unknown}"
         echo -e "${BLUE}Switch Name:${NC} ${chassis_name:-Unknown}"
-        echo -e "${BLUE}Description:${NC} ${sysdescr:-Unknown}"
+        # Print Description label in blue, value in plain text, all on one line
+        printf "%b" "${BLUE}Description:${NC} "
+        echo "${sysdescr:-Unknown}"
         if [ -n "$mgmtip4" ]; then
             echo -e "${BLUE}Management IP:${NC} ${mgmtip4}"
         fi
