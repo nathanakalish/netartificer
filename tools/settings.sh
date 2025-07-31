@@ -12,6 +12,9 @@ print_settings_menu() {
     echo -e "${BLUE}4)${NC} AP SSID: ${GREEN}$AP_SSID${NC}"
     echo -e "${BLUE}5)${NC} AP Passphrase: ${GREEN}$AP_PASSPHRASE${NC}"
     echo -e "${BLUE}6)${NC} Hide Tailscale LLDP Neighbors: ${GREEN}${HIDE_TAILSCALE_LLDP:-disabled}${NC}"
+    echo -e "${BLUE}7)${NC} GitHub Username for Updates: ${GREEN}${GITHUB_USER:-nathanakalish}${NC}"
+    echo -e "${BLUE}8)${NC} GitHub Repo for Updates: ${GREEN}${GITHUB_REPO:-netartificer}${NC}"
+    echo -e "${BLUE}9)${NC} GitHub Branch for Updates: ${GREEN}${GITHUB_BRANCH:-main}${NC}"
     echo -e "${BLUE}0)${NC} Go Back"
     echo ""
 }
@@ -156,6 +159,58 @@ configure_settings() {
                     echo -e "${GREEN}Hide Tailscale LLDP Neighbors set to $new_hide.${NC}"
                     sleep 2
                     break
+                done
+                source "$CONFIG_FILE"
+                ;;
+            7)
+                show_banner
+                while true; do
+                    read -e -rp "Enter new GitHub username for updates: " new_gh_user
+                    [ "$new_gh_user" = "qq" ] && break
+                    if [[ -n "$new_gh_user" && "$new_gh_user" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+                        sed -i '' "s/^GITHUB_USER=.*/GITHUB_USER=\"$new_gh_user\"/" "$CONFIG_FILE" || echo "GITHUB_USER=\"$new_gh_user\"" >> "$CONFIG_FILE"
+                        GITHUB_USER="$new_gh_user"
+                        echo -e "${GREEN}GitHub username updated to $new_gh_user.${NC}"
+                        sleep 2
+                        break
+                    else
+                        echo -e "${RED}Invalid GitHub username. Please use only valid characters.${NC}"
+                    fi
+                done
+                source "$CONFIG_FILE"
+                ;;
+            8)
+                show_banner
+                while true; do
+                    read -e -rp "Enter new GitHub repo for updates: " new_gh_repo
+                    [ "$new_gh_repo" = "qq" ] && break
+                    if [[ -n "$new_gh_repo" && "$new_gh_repo" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+                        sed -i '' "s/^GITHUB_REPO=.*/GITHUB_REPO=\"$new_gh_repo\"/" "$CONFIG_FILE" || echo "GITHUB_REPO=\"$new_gh_repo\"" >> "$CONFIG_FILE"
+                        GITHUB_REPO="$new_gh_repo"
+                        echo -e "${GREEN}GitHub repo updated to $new_gh_repo.${NC}"
+                        sleep 2
+                        break
+                    else
+                        echo -e "${RED}Invalid GitHub repo name. Please use only valid characters.${NC}"
+                    fi
+                done
+                source "$CONFIG_FILE"
+                ;;
+            9)
+                show_banner
+                while true; do
+                    read -e -rp "Enter GitHub branch for updates (default: main): " new_branch
+                    [ "$new_branch" = "qq" ] && break
+                    [ -z "$new_branch" ] && new_branch="main"
+                    if [[ "$new_branch" =~ ^[a-zA-Z0-9._/-]+$ ]]; then
+                        sed -i '' "s/^GITHUB_BRANCH=.*/GITHUB_BRANCH=\"$new_branch\"/" "$CONFIG_FILE" || echo "GITHUB_BRANCH=\"$new_branch\"" >> "$CONFIG_FILE"
+                        GITHUB_BRANCH="$new_branch"
+                        echo -e "${GREEN}GitHub branch updated to $new_branch.${NC}"
+                        sleep 2
+                        break
+                    else
+                        echo -e "${RED}Invalid branch name. Please use only valid characters.${NC}"
+                    fi
                 done
                 source "$CONFIG_FILE"
                 ;;

@@ -10,7 +10,7 @@ YELLOW='\033[1;33m'  # Yellow for warnings or user input requests.
 RED='\033[0;31m'     # Red for bad things.
 NC='\033[0m'         # Default color for the terminal.
 
-VERSION="2.0" # Script version. Used in banner and the upcoming updater.
+VERSION="2.1" # Script version. Used in banner and the upcoming updater.
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" # Directory of the script.
 TOOLS_DIR="$SCRIPT_DIR/tools" # Directory containing utility scripts.
 CONFIG_FILE="$SCRIPT_DIR/settings.conf" # Contains user settings.
@@ -22,7 +22,7 @@ else
     RANDPASS=$(shuf -i 10000000-99999999 -n 1)
     echo -e "${YELLOW}Config file not found. Creating default config at $CONFIG_FILE...${NC}"
     cat > "$CONFIG_FILE" <<EOF
-# config.conf - Configuration file for net_script
+# config.conf - Configuration file for NetArtificer
 
 # Default SSH username for switch connections
 SSH_USER="admin"
@@ -30,10 +30,17 @@ SSH_USER="admin"
 # Logging configuration (enabled/disabled)
 LOGGING="enabled"
 # Log file name (relative to script directory)
-LOG_FILENAME="net_script.log"
+LOG_FILENAME="netartificer.log"
 # Access Point SSID and passphrase
 AP_SSID="$HOSTNAME"
 AP_PASSPHRASE="$RANDPASS"
+# Hide Tailscale LLDP information (enabled/disabled)
+HIDE_TAILSCALE_LLDP="disabled"
+# GitHub user and repo for updates
+GITHUB_USER="nathanakalish"
+GITHUB_REPO="netartificer"
+# GitHub branch for updates
+GITHUB_BRANCH="main"
 EOF
     source "$CONFIG_FILE"
 fi
@@ -252,7 +259,10 @@ force_update_netartificer() {
     echo -e "${BLUE}Forcing update...${NC}"
     cd "$SCRIPT_DIR"
     tmpdir=$(mktemp -d)
-    git clone --depth 1 https://github.com/nathanakalish/netartificer "$tmpdir" >/dev/null 2>&1
+    github_user="${GITHUB_USER:-nathanakalish}"
+    github_repo="${GITHUB_REPO:-netartificer}"
+    github_branch="${GITHUB_BRANCH:-main}"
+    git clone --depth 1 --branch "$github_branch" https://github.com/$github_user/$github_repo "$tmpdir" >/dev/null 2>&1
     if [ $? -ne 0 ]; then
         echo -e "${RED}Failed to clone the repository.${NC}"
         rm -rf "$tmpdir"
@@ -279,8 +289,11 @@ update_netartificer() {
         read -n 1 -s
         return
     fi
-    # Get latest netartificer.sh from GitHub
-    github_raw_url="https://raw.githubusercontent.com/nathanakalish/netartificer/main/netartificer.sh"
+    # Use config vars for GitHub user/repo/branch
+    github_user="${GITHUB_USER:-nathanakalish}"
+    github_repo="${GITHUB_REPO:-netartificer}"
+    github_branch="${GITHUB_BRANCH:-main}"
+    github_raw_url="https://raw.githubusercontent.com/$github_user/$github_repo/$github_branch/netartificer.sh"
     github_version=$(curl -s "$github_raw_url" | grep '^VERSION=' | head -n1 | cut -d'"' -f2)
     if [ -z "$github_version" ]; then
         echo -e "${RED}Could not fetch version info from GitHub.${NC}"
@@ -300,7 +313,7 @@ update_netartificer() {
         echo -e "${BLUE}Updating NetArtificer...${NC}"
         cd "$SCRIPT_DIR"
         tmpdir=$(mktemp -d)
-        git clone --depth 1 https://github.com/nathanakalish/netartificer "$tmpdir" >/dev/null 2>&1
+        git clone --depth 1 --branch "$github_branch" https://github.com/$github_user/$github_repo "$tmpdir" >/dev/null 2>&1
         if [ $? -ne 0 ]; then
             echo -e "${RED}Failed to clone the repository.${NC}"
             rm -rf "$tmpdir"
