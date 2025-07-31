@@ -34,7 +34,7 @@ configure_settings() {
                     read -e -rp "Enter new default SSH Username: " new_user
                     [ "$new_user" = "qq" ] && break
                     if [[ -n "$new_user" && "$new_user" =~ ^[a-zA-Z0-9._-]+$ ]]; then
-                        sed -i '' "s/^SSH_USER=.*/SSH_USER=\"$new_user\"/" "$CONFIG_FILE"
+                        update_config_var "SSH_USER" "$new_user"
                         echo -e "${GREEN}Default SSH Username updated to $new_user.${NC}"
                         if [ "${LOGGING:-enabled}" = "enabled" ]; then
                             log "Default SSH Username changed to $new_user."
@@ -70,7 +70,7 @@ configure_settings() {
                             continue
                             ;;
                     esac
-                    sed -i '' "s/^LOGGING=.*/LOGGING=\"$new_logging\"/" "$CONFIG_FILE"
+                    update_config_var "LOGGING" "$new_logging"
                     LOGGING="$new_logging"
                     echo -e "${GREEN}Logging set to $new_logging.${NC}"
                     if [ "${LOGGING:-enabled}" = "enabled" ]; then
@@ -89,7 +89,7 @@ configure_settings() {
                     read -e -rp "Enter new log file name (relative to script directory): " new_log
                     [ "$new_log" = "qq" ] && break
                     if [[ -n "$new_log" && "$new_log" =~ ^[a-zA-Z0-9._/-]+$ ]]; then
-                        sed -i '' "s/^LOG_FILENAME=.*/LOG_FILENAME=\"$new_log\"/" "$CONFIG_FILE"
+                        update_config_var "LOG_FILENAME" "$new_log"
                         LOG_FILENAME="$SCRIPT_DIR/$new_log"
                         echo -e "${GREEN}Log file updated to $new_log.${NC}"
                         if [ "${LOGGING:-enabled}" = "enabled" ]; then
@@ -112,7 +112,7 @@ configure_settings() {
                     read -e -rp "Enter new AP SSID: " new_ssid
                     [ "$new_ssid" = "qq" ] && break
                     if [[ -n "$new_ssid" ]]; then
-                        sed -i '' "s/^AP_SSID=.*/AP_SSID=\"$new_ssid\"/" "$CONFIG_FILE"
+                        update_config_var "AP_SSID" "$new_ssid"
                         echo -e "${GREEN}AP SSID updated to $new_ssid.${NC}"
                         sleep 2
                         break
@@ -128,7 +128,7 @@ configure_settings() {
                     read -e -rp "Enter new AP Passphrase: " new_pass
                     [ "$new_pass" = "qq" ] && break
                     if [[ -n "$new_pass" ]]; then
-                        sed -i '' "s/^AP_PASSPHRASE=.*/AP_PASSPHRASE=\"$new_pass\"/" "$CONFIG_FILE"
+                        update_config_var "AP_PASSPHRASE" "$new_pass"
                         echo -e "${GREEN}AP Passphrase updated.${NC}"
                         sleep 2
                         break
@@ -145,18 +145,18 @@ configure_settings() {
                     [ "$yn_hide" = "qq" ] && break
                     case $yn_hide in
                         y|Y)
-                            new_hide="enabled" ;;
+                            ts_hide="enabled" ;;
                         n|N)
-                            new_hide="disabled" ;;
+                            ts_hide="disabled" ;;
                         *)
                             clear
                             print_settings_menu
                             echo -e "${RED}Please enter 'y' or 'n'.${NC}"
                             continue ;;
                     esac
-                    sed -i '' "s/^HIDE_TAILSCALE_LLDP=.*/HIDE_TAILSCALE_LLDP=\"$new_hide\"/" "$CONFIG_FILE" || echo "HIDE_TAILSCALE_LLDP=\"$new_hide\"" >> "$CONFIG_FILE"
-                    HIDE_TAILSCALE_LLDP="$new_hide"
-                    echo -e "${GREEN}Hide Tailscale LLDP Neighbors set to $new_hide.${NC}"
+                    update_config_var "HIDE_TAILSCALE_LLDP" "$ts_hide"
+                    HIDE_TAILSCALE_LLDP="$ts_hide"
+                    echo -e "${GREEN}Hide Tailscale LLDP Neighbors set to $ts_hide.${NC}"
                     sleep 2
                     break
                 done
@@ -168,7 +168,7 @@ configure_settings() {
                     read -e -rp "Enter new GitHub username for updates: " new_gh_user
                     [ "$new_gh_user" = "qq" ] && break
                     if [[ -n "$new_gh_user" && "$new_gh_user" =~ ^[a-zA-Z0-9._-]+$ ]]; then
-                        sed -i '' "s/^GITHUB_USER=.*/GITHUB_USER=\"$new_gh_user\"/" "$CONFIG_FILE" || echo "GITHUB_USER=\"$new_gh_user\"" >> "$CONFIG_FILE"
+                        update_config_var "GITHUB_USER" "$new_gh_user"
                         GITHUB_USER="$new_gh_user"
                         echo -e "${GREEN}GitHub username updated to $new_gh_user.${NC}"
                         sleep 2
@@ -185,7 +185,7 @@ configure_settings() {
                     read -e -rp "Enter new GitHub repo for updates: " new_gh_repo
                     [ "$new_gh_repo" = "qq" ] && break
                     if [[ -n "$new_gh_repo" && "$new_gh_repo" =~ ^[a-zA-Z0-9._-]+$ ]]; then
-                        sed -i '' "s/^GITHUB_REPO=.*/GITHUB_REPO=\"$new_gh_repo\"/" "$CONFIG_FILE" || echo "GITHUB_REPO=\"$new_gh_repo\"" >> "$CONFIG_FILE"
+                        update_config_var "GITHUB_REPO" "$new_gh_repo"
                         GITHUB_REPO="$new_gh_repo"
                         echo -e "${GREEN}GitHub repo updated to $new_gh_repo.${NC}"
                         sleep 2
@@ -203,7 +203,7 @@ configure_settings() {
                     [ "$new_branch" = "qq" ] && break
                     [ -z "$new_branch" ] && new_branch="main"
                     if [[ "$new_branch" =~ ^[a-zA-Z0-9._/-]+$ ]]; then
-                        sed -i '' "s/^GITHUB_BRANCH=.*/GITHUB_BRANCH=\"$new_branch\"/" "$CONFIG_FILE" || echo "GITHUB_BRANCH=\"$new_branch\"" >> "$CONFIG_FILE"
+                        update_config_var "GITHUB_BRANCH" "$new_branch"
                         GITHUB_BRANCH="$new_branch"
                         echo -e "${GREEN}GitHub branch updated to $new_branch.${NC}"
                         sleep 2
@@ -224,6 +224,30 @@ configure_settings() {
                 ;;
         esac
     done
+}
+
+# Set sed in-place flag for macOS or Linux
+get_sed_inplace_flag() {
+    if sed --version 2>/dev/null | grep -q GNU; then
+        echo "-i"
+    else
+        echo "-i ''"
+    fi
+}
+
+# Update or append a config variable in the config file
+update_config_var() {
+    local var="$1"
+    local value="$2"
+    local sed_flag
+    sed_flag=$(get_sed_inplace_flag)
+    # Remove any empty lines for this var
+    sed $sed_flag "/^${var}=$/d" "$CONFIG_FILE"
+    if grep -q "^${var}=" "$CONFIG_FILE"; then
+        sed $sed_flag "s|^${var}=.*|${var}=\"$value\"|" "$CONFIG_FILE"
+    else
+        echo "${var}=\"$value\"" >> "$CONFIG_FILE"
+    fi
 }
 
 trap 'unset SWITCH_PASSWORD' EXIT

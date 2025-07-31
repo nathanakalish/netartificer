@@ -105,10 +105,15 @@ display_lldp_info() {
         return 1
     }
     # Parse all neighbors (no --args/--named)
-    mapfile -t neighbors < <(echo "$lldp_json" | jq -c '
-        .lldp.interface | to_entries[] | . as $iface_entry |
-        .value.chassis | to_entries[] | 
-        {iface: $iface_entry.key, chassis_name: .key, chassis: .value, port: $iface_entry.value.port, vlan: $iface_entry.value.vlan}
+    neighbors=()
+    while IFS= read -r neighbor; do
+        neighbors+=("$neighbor")
+    done < <(echo "$lldp_json" | jq -c '
+        .lldp.interface | (if type=="array" then . else to_entries | map({(.key): .value}) end) |
+        map(to_entries[] | . as $iface_entry |
+            $iface_entry.value.chassis | to_entries[] |
+            {iface: $iface_entry.key, chassis_name: .key, chassis: .value, port: $iface_entry.value.port, vlan: $iface_entry.value.vlan}
+        ) | .[]
     ')
     tailscale_neighbors=()
     nontailscale_neighbors=()
@@ -214,21 +219,26 @@ display_lldp_info() {
             read -n 1 -s
             show_neighbor=0
         else
-            prompt="[n]ext, [p]revious, [q]uit: "
+            prompt="[←] previous, [→] next, [q]uit: "
             if [ $i -eq 0 ]; then
-                prompt="[n]ext, [q]uit: "
+                prompt="[→] next, [q]uit: "
             elif [ $i -eq $((total_neighbors-1)) ]; then
-                prompt="[p]revious, [q]uit: "
+                prompt="[←] previous, [q]uit: "
             fi
-            read -n 1 -p "$prompt" navkey
+            echo -ne "$prompt"
+            IFS= read -rsn1 navkey
+            if [[ $navkey == $'\e' ]]; then
+                read -rsn2 navkey2
+                navkey+=$navkey2
+            fi
             echo
             case "$navkey" in
-                n|N)
+                $'\e[C') # right arrow
                     if [ $i -lt $((total_neighbors-1)) ]; then
                         i=$((i+1))
                     fi
                     ;;
-                p|P)
+                $'\e[D') # left arrow
                     if [ $i -gt 0 ]; then
                         i=$((i-1))
                     fi
