@@ -11,10 +11,10 @@ print_settings_menu() {
     echo -e "${BLUE}3)${NC} Log File: ${GREEN}$LOG_FILENAME${NC}"
     echo -e "${BLUE}4)${NC} AP SSID: ${GREEN}$AP_SSID${NC}"
     echo -e "${BLUE}5)${NC} AP Passphrase: ${GREEN}$AP_PASSPHRASE${NC}"
-    echo -e "${BLUE}6)${NC} Hide Tailscale LLDP Neighbors: ${GREEN}${HIDE_TAILSCALE_LLDP:-disabled}${NC}"
-    echo -e "${BLUE}7)${NC} GitHub Username for Updates: ${GREEN}${GITHUB_USER:-nathanakalish}${NC}"
-    echo -e "${BLUE}8)${NC} GitHub Repo for Updates: ${GREEN}${GITHUB_REPO:-netartificer}${NC}"
-    echo -e "${BLUE}9)${NC} GitHub Branch for Updates: ${GREEN}${GITHUB_BRANCH:-main}${NC}"
+    echo -e "${BLUE}6)${NC} Hide Tailscale LLDP Neighbors: ${GREEN}$HIDE_TAILSCALE_LLDP${NC}"
+    echo -e "${BLUE}7)${NC} GitHub Username for Updates: ${GREEN}$GITHUB_USER${NC}"
+    echo -e "${BLUE}8)${NC} GitHub Repo for Updates: ${GREEN}$GITHUB_REPO${NC}"
+    echo -e "${BLUE}9)${NC} GitHub Branch for Updates: ${GREEN}$GITHUB_BRANCH${NC}"
     echo -e "${BLUE}0)${NC} Go Back"
     echo ""
 }
@@ -241,6 +241,14 @@ update_config_var() {
     local value="$2"
     local sed_flag
     sed_flag=$(get_sed_inplace_flag)
+    if [ -z "$CONFIG_FILE" ]; then
+        echo "CONFIG_FILE is not set. Cannot update config." >&2
+        return 1
+    fi
+    if [ ! -w "$CONFIG_FILE" ]; then
+        echo "No write permission for $CONFIG_FILE. Cannot update config." >&2
+        return 1
+    fi
     # Remove any empty lines for this var
     sed $sed_flag "/^${var}=$/d" "$CONFIG_FILE"
     if grep -q "^${var}=" "$CONFIG_FILE"; then

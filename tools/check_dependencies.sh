@@ -3,9 +3,12 @@
 
 # Figure out what OS we're running on (Linux or macOS)
 OS_TYPE="$(uname -s)"
-
 # List of dependencies for the different tools in the script
-DEPS=("lldpd" "ssh" "arp" "awk" "sed" "grep" "ping" "dig" "sshpass" "wakeonlan" "speedtest-cli" "nmap" "mtr" "snmpget" "whois" "brctl" "hostapd")
+if [[ "$OS_TYPE" == "Darwin" ]]; then
+    DEPS=("lldpd" "ssh" "arp" "awk" "sed" "grep" "ping" "dig" "sshpass" "wakeonlan" "speedtest-cli" "nmap" "mtr" "snmpget" "whois")
+else
+    DEPS=("lldpd" "ssh" "arp" "awk" "sed" "grep" "ping" "dig" "sshpass" "wakeonlan" "speedtest-cli" "nmap" "mtr" "snmpget" "whois" "brctl" "hostapd")
+fi
 
 check_dependencies() {
     show_banner
