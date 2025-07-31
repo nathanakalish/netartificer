@@ -72,7 +72,7 @@ enable_ap() {
     # Prompt for wireless interface
     while true; do
         show_banner
-        echo -e "${BLUE}Available wireless interfaces:${NC}"
+        echo -e "${BLUE}Available interfaces:${NC}"
         for iface in "${avail_wl_ifaces[@]}"; do
             echo "  $iface"
         done
