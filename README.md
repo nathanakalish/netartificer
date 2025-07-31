@@ -1,5 +1,7 @@
 # NetArtificer
 
+**Version 2.0**
+
 Artificers use ingenuity and magic to unlock extraordinary capabilities in ~~objects~~ network switches.
 
 NetArtificer is a Bash-powered network toolkit for quick diagnostics, switch wrangling, and troubleshooting. It's menu-driven, works on Linux and macOS, and is mostly tested on Aruba switches (Cisco/Netgear support is there, but not guaranteed—I've only got Aruba gear to play with!).
@@ -9,26 +11,33 @@ NetArtificer is a Bash-powered network toolkit for quick diagnostics, switch wra
 - **User-Friendly Menus:** No need to memorize commands or flags. The interactive menus guide you through every step, with helpful warnings and confirmations.
 - **Cleaner Than the CLI:** Instead of sifting through walls of text, NetArtificer highlights the important stuff and makes it easy to spot errors, warnings, and results at a glance.
 
-## What can it do?
-- Run cable diagnostics (TDR) on supported switches
-- VLAN config helper
-- LLDP and ARP info
-- Show network interfaces
-- Ping, traceroute (MTR), DNS lookup, port scan, ping sweep
-- Wake-on-LAN, speed test, WHOIS, SNMP monitoring
-- Interactive menu or command-line flags
-- Tries to auto-detect switch info via LLDP
-- Logging (kinda basic for now, but will improve)
+## Features
+- **Cable Diagnostics (TDR):** Run cable tests on supported switches (Aruba, Cisco, Netgear; Aruba is fully implemented).
+- **VLAN Configuration Helper:** Interactive VLAN config for Aruba, Cisco, and Netgear switches, with LLDP auto-detection and safety checks.
+- **LAG (Link Aggregation) Configuration:** Create and manage LAGs/port-channels on supported switches.
+- **LLDP and ARP Info:** View detailed LLDP neighbor info (with option to hide Tailscale neighbors) and ARP tables.
+- **Show Network Interfaces:** Lists all active interfaces, with type and speed, including bridge/AP status.
+- **Access Point Control:** Enable/disable a Wi-Fi access point (bridged to Ethernet) with custom SSID/passphrase.
+- **Network Utilities:**
+  - Ping, Traceroute (MTR), DNS lookup, Port scan, Ping sweep
+  - Wake-on-LAN, Speed test, WHOIS, SNMP monitoring
+- **Settings Configuration:** Change SSH username, logging, log file, AP SSID/passphrase, and hide Tailscale LLDP neighbors—all from the menu.
+- **Dependency Checking & Auto-Install:** Checks for all required tools and offers to install missing dependencies (supports apt and Homebrew).
+- **Updater:** Checks for new versions on GitHub and can update itself in-place.
+- **Logging:** Basic logging of actions to a configurable log file.
+- **Command-Line Flags:** Run any tool directly with flags (e.g., `--ping`, `--vlan`, etc.) or use the interactive menu.
+- **Extensible:** Drop new Bash scripts in the `tools/` folder to add your own menu options.
+- **Cross-Platform:** Works on Linux and macOS (tested on both).
+- **Safety:** Prompts and warnings to prevent accidental lockout or misconfiguration.
+- **Quick Bailout:** Type `qq` at most prompts to return to the main menu.
 
 ## Planned Features
-- Much better, more detailed logging (with log levels and filtering)
-- Real Cisco and Netgear switch support (tested and robust)
-- More automatic detection and error handling
-- Plugin/extension system for adding new tools easily
+- More robust logging (log levels, filtering, better formatting)
+- Fully tested Cisco and Netgear support
+- Plugin/extension system for new tools
 - Automatic menu generation from tools directory
-- More output formatting
-- Updater function for easy upgrades
-- More network utilities and switch vendor support
+- More output formatting and reporting
+- Additional network utilities and vendor support
 
 ## Requirements
 - Bash (Linux or macOS)
@@ -40,8 +49,8 @@ NetArtificer is a Bash-powered network toolkit for quick diagnostics, switch wra
    ```sh
    git clone https://github.com/nathanakalish/netartificer.git
    cd netartificer
-      ```
-   2. Make the main script executable:
+   ```
+2. Make the main script executable:
    ```sh
    chmod +x netartificer.sh
    ```
