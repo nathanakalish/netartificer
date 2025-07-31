@@ -1,3 +1,15 @@
 # Ignore log files and sensitive config
 *.log
 settings.conf
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows system files
+Thumbs.db
+Desktop.ini
+
+# Linux system files
+*~

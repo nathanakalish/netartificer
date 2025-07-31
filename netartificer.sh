@@ -10,7 +10,7 @@ YELLOW='\033[1;33m'  # Yellow for warnings or user input requests.
 RED='\033[0;31m'     # Red for bad things.
 NC='\033[0m'         # Default color for the terminal.
 
-VERSION="1.0" # Script version. Used in banner and the upcoming updater.
+VERSION="2.0" # Script version. Used in banner and the upcoming updater.
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" # Directory of the script.
 TOOLS_DIR="$SCRIPT_DIR/tools" # Directory containing utility scripts.
 CONFIG_FILE="$SCRIPT_DIR/settings.conf" # Contains user settings.
@@ -18,6 +18,8 @@ CONFIG_FILE="$SCRIPT_DIR/settings.conf" # Contains user settings.
 if [ -f "$CONFIG_FILE" ]; then
     source "$CONFIG_FILE"
 else
+    HOSTNAME=$(hostname)
+    RANDPASS=$(shuf -i 10000000-99999999 -n 1)
     echo -e "${YELLOW}Config file not found. Creating default config at $CONFIG_FILE...${NC}"
     cat > "$CONFIG_FILE" <<EOF
 # config.conf - Configuration file for net_script
@@ -29,6 +31,9 @@ SSH_USER="admin"
 LOGGING="enabled"
 # Log file name (relative to script directory)
 LOG_FILENAME="net_script.log"
+# Access Point SSID and passphrase
+AP_SSID="$HOSTNAME"
+AP_PASSPHRASE="$RANDPASS"
 EOF
     source "$CONFIG_FILE"
 fi
@@ -155,6 +160,20 @@ done
 # Check for required dependencies (Run in check_dependencies). May make this a menu option later.
 check_dependencies
 
+# Ensure lldpd is enabled and running
+if command -v lldpd >/dev/null 2>&1; then
+    if command -v systemctl >/dev/null 2>&1; then
+        sudo systemctl enable lldpd >/dev/null 2>&1
+        sudo systemctl start lldpd >/dev/null 2>&1
+    elif command -v service >/dev/null 2>&1; then
+        sudo service lldpd start >/dev/null 2>&1
+    fi
+    # Fallback: try to start if not running
+    if ! pgrep lldpd >/dev/null 2>&1; then
+        sudo lldpd >/dev/null 2>&1 &
+    fi
+fi
+
 # Function: network_utilities_menu
 # Displays a submenu for network tools and executes the selected utility.
 network_utilities_menu() {
@@ -204,14 +223,144 @@ network_utilities_menu() {
     done
 }
 
+AP_STATUS_FILE="/tmp/netartificer_ap_status"
+get_ap_status() {
+    if [ -f "$AP_STATUS_FILE" ]; then
+        grep '^status=' "$AP_STATUS_FILE" | cut -d'=' -f2
+    else
+        echo "not_running"
+    fi
+}
+get_ap_pid() {
+    if [ -f "$AP_STATUS_FILE" ]; then
+        grep '^pid=' "$AP_STATUS_FILE" | cut -d'=' -f2
+    fi
+}
+set_ap_status() {
+    # $1 = status, $2 = pid (optional)
+    if [ "$1" = "running" ] && [ -n "$2" ]; then
+        echo "status=running" > "$AP_STATUS_FILE"
+        echo "pid=$2" >> "$AP_STATUS_FILE"
+    else
+        echo "status=not_running" > "$AP_STATUS_FILE"
+        echo "pid=" >> "$AP_STATUS_FILE"
+    fi
+}
+
+# Helper: Force update NetArtificer from GitHub
+force_update_netartificer() {
+    echo -e "${BLUE}Forcing update...${NC}"
+    cd "$SCRIPT_DIR"
+    tmpdir=$(mktemp -d)
+    git clone --depth 1 https://github.com/nathanakalish/netartificer "$tmpdir" >/dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Failed to clone the repository.${NC}"
+        rm -rf "$tmpdir"
+        echo -e "${GREEN}Press any key to return to the menu...${NC}"
+        read -n 1 -s
+        return 1
+    fi
+    cp -r "$tmpdir"/* "$SCRIPT_DIR"/
+    rm -rf "$tmpdir"
+    chmod +x "$SCRIPT_DIR/netartificer.sh"
+    echo -e "${GREEN}NetArtificer force-updated! Restarting...${NC}"
+    sleep 3
+    exec "$SCRIPT_DIR/netartificer.sh"
+}
+
+# Update NetArtificer from GitHub
+update_netartificer() {
+    show_banner
+    echo -e "${BLUE}Checking for updates...${NC}"
+    # Check for internet connectivity
+    if ! curl -s --head https://github.com >/dev/null; then
+        echo -e "${RED}No internet connection or unable to reach GitHub.${NC}"
+        echo -e "${GREEN}Press any key to return to the menu...${NC}"
+        read -n 1 -s
+        return
+    fi
+    # Get latest netartificer.sh from GitHub
+    github_raw_url="https://raw.githubusercontent.com/nathanakalish/netartificer/main/netartificer.sh"
+    github_version=$(curl -s "$github_raw_url" | grep '^VERSION=' | head -n1 | cut -d'"' -f2)
+    if [ -z "$github_version" ]; then
+        echo -e "${RED}Could not fetch version info from GitHub.${NC}"
+        echo -e "${GREEN}Press any key to return to the menu...${NC}"
+        read -n 1 -s
+        return
+    fi
+    if [[ "$github_version" > "$VERSION" ]]; then
+        echo -e "${YELLOW}Update found! $VERSION => $github_version${NC}"
+        read -e -rp "Do you want to update? (Y/n): " update_confirm
+        update_confirm=${update_confirm:-y}
+        if [[ ! "$update_confirm" =~ ^[Yy]$ ]]; then
+            echo -e "${GREEN}Update cancelled. Press any key to return to the menu...${NC}"
+            read -n 1 -s
+            return
+        fi
+        echo -e "${BLUE}Updating NetArtificer...${NC}"
+        cd "$SCRIPT_DIR"
+        tmpdir=$(mktemp -d)
+        git clone --depth 1 https://github.com/nathanakalish/netartificer "$tmpdir" >/dev/null 2>&1
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}Failed to clone the repository.${NC}"
+            rm -rf "$tmpdir"
+            echo -e "${GREEN}Press any key to return to the menu...${NC}"
+            read -n 1 -s
+            return
+        fi
+        cp -r "$tmpdir"/* "$SCRIPT_DIR"/
+        rm -rf "$tmpdir"
+        chmod +x "$SCRIPT_DIR/netartificer.sh"
+        echo -e "${GREEN}NetArtificer updated to version $github_version! Restarting...${NC}"
+        sleep 3
+        exec "$SCRIPT_DIR/netartificer.sh"
+    elif [[ "$github_version" < "$VERSION" ]]; then
+        echo -e "${YELLOW}You are running a version NEWER than the source! Are you from the future?${NC}"
+        echo -e "${BLUE}Would you like to force an update anyway? (y/n):${NC}"
+        read -n 1 -r force_update
+        echo
+        if [[ "$force_update" =~ ^[Yy]$ ]]; then
+            force_update_netartificer
+            return
+        else
+            echo -e "${GREEN}Press any key to return to the menu...${NC}"
+            read -n 1 -s
+            return
+        fi
+    elif [[ "$github_version" == "$VERSION" ]]; then
+        echo -e "${GREEN}You are already running the latest version ($VERSION).${NC}"
+        echo -e "${BLUE}Would you like to force an update anyway? (y/n):${NC}"
+        read -n 1 -r force_update
+        echo
+        if [[ "$force_update" =~ ^[Yy]$ ]]; then
+            force_update_netartificer
+            return
+        else
+            echo -e "${GREEN}Press any key to return to the menu...${NC}"
+            read -n 1 -s
+            return
+        fi
+    else
+        echo -e "${RED}There was an error with the updater. Please check your setup or try again later.${NC}"
+        echo -e "${GREEN}Press any key to return to the menu...${NC}"
+        read -n 1 -s
+        return
+    fi
+}
+
 # Main menu loop: Provides the central hub for accessing network tools and configurations.
 while true; do
     show_banner
     echo -e "${BLUE}Network Interfaces:${NC}"
-    interfaces_output=$(display_interfaces)  # List available network interfaces.
-    echo -e "$interfaces_output"
+    display_interfaces
     echo ""
     # Present the main menu options.
+    ap_status=$(get_ap_status)
+    if [ "$ap_status" = "running" ]; then
+        ap_menu_label="Disable Access Point"
+    else
+        ap_menu_label="Enable Access Point"
+    fi
     echo -e "${BLUE}Menu Options:${NC}"
     echo -e "${BLUE}1)${NC} Show LLDP Information"
     echo -e "${BLUE}2)${NC} Show ARP Table"
@@ -219,11 +368,12 @@ while true; do
     echo -e "${BLUE}4)${NC} LAG Configuration Utility"
     echo -e "${BLUE}5)${NC} Cable Tester"
     echo -e "${BLUE}6)${NC} Network Utilities"
-    echo -e "${BLUE}7)${NC} Refresh Interfaces"
+    echo -e "${BLUE}7)${NC} $ap_menu_label"
     echo -e "${BLUE}8)${NC} Settings Configuration"
+    echo -e "${BLUE}9)${NC} Update NetArtificer"
     echo -e "${BLUE}0)${NC} Exit"
     echo ""
-    read -e -rp "Enter your choice [0-8]: " choice
+    read -e -rp "Enter your choice [0-9]: " choice
     case $choice in
         1)
             display_lldp_info; log "Displayed LLDP information.";;
@@ -238,9 +388,20 @@ while true; do
         6)
             network_utilities_menu;;
         7)
-            log "Interfaces refreshed.";;
+            if [ "$ap_status" = "running" ]; then
+                disable_ap
+                echo -e "${GREEN}Access Point disabled. Press any key to continue...${NC}"
+                read -n 1 -s
+            else
+                enable_ap
+                echo -e "${GREEN}Access Point enabled. Press any key to continue...${NC}"
+                read -n 1 -s
+            fi
+            ;;
         8)
             configure_settings;;
+        9)
+            update_netartificer;;
         0)
             clear; echo -e "${GREEN}Goodbye!${NC}"; log "User exited the script."; exit 0;;
         *)

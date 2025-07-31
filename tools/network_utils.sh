@@ -3,30 +3,39 @@
 
 # display_interfaces: Show all active IPv4 interfaces (except loopback and Tailscale/utun)
 display_interfaces() {
+    shown_br0=0
     if command -v ip >/dev/null 2>&1; then
-        ip -o -4 addr show up | awk '!/ lo / && !($2 ~ /^tailscale[0-9]+$/) && !($2 ~ /^utun[0-9]+$/) {
-            split($4, a, "/");
-            print $2, a[1]
-        }' | while read -r iface ipaddr; do
+        ip -o -4 addr show up | awk '!/ lo / && !($2 ~ /^tailscale[0-9]+$/) && !($2 ~ /^utun[0-9]+$/) {split($4, a, "/"); print $2, a[1]}' | while read -r iface ipaddr; do
+            ap_label=""
             if [ -d "/sys/class/net/$iface/wireless" ] || iw dev "$iface" info >/dev/null 2>&1; then
-                printf "\033[0;36m%s\033[0m - \033[0;32m%s\033[0m (\033[0;36mWi-Fi\033[0m)\n" "$iface" "$ipaddr"
+                printf "\033[0;36m%s\033[0m - \033[0;32m%s\033[0m (\033[0;36mWi-Fi\033[0m)%s\n" "$iface" "$ipaddr" "$ap_label"
             else
                 speed="Unknown"
                 if command -v ethtool >/dev/null 2>&1; then
                     speed=$(ethtool "$iface" 2>/dev/null | awk -F': ' '/Speed:/ {print $2}')
                 fi
-                printf "\033[0;36m%s\033[0m - \033[0;32m%s\033[0m (\033[0;36mEthernet\033[0m, \033[0;36m%s\033[0m)\n" "$iface" "$ipaddr" "$speed"
+                printf "\033[0;36m%s\033[0m - \033[0;32m%s\033[0m (\033[0;36mEthernet\033[0m, \033[0;36m%s\033[0m)%s\n" "$iface" "$ipaddr" "$speed" "$ap_label"
             fi
         done
+        # If br0 exists, show it and the bridged interfaces in the requested format
+        if ip link show br0 >/dev/null 2>&1; then
+            br0_ip=$(ip -4 addr show br0 | awk '/inet / {print $2}' | cut -d'/' -f1)
+            [ -z "$br0_ip" ] && br0_ip="No IP"
+            #printf "\033[0;36m%s\033[0m - \033[0;32m%s\033[0m (\033[0;36mAccess Point Bridge\033[0m)\n" "br0" "$br0_ip"
+            if ip link show eth0 >/dev/null 2>&1; then
+                printf "\033[0;36meth0\033[0m - \033[0;32mBridged \033[0m(\033[0;36mbr0 Source\033[0m)\n"
+            fi
+            if ip link show wlan0 >/dev/null 2>&1; then
+                printf "\033[0;36mwlan0\033[0m - \033[0;32mBridged \033[0m(\033[0;36mbr0 Broadcast\033[0m)\n"
+            fi
+        fi
     elif command -v ifconfig >/dev/null 2>&1; then
         wifi_ifaces=$(networksetup -listallhardwareports 2>/dev/null | awk '/Wi-Fi|AirPort/ {getline; print $2}')
-        ifconfig | awk '/flags=.*UP/ {iface=$1} /inet / && iface!="lo0:" && iface!~"^tailscale[0-9]+:" && iface!~"^utun[0-9]+:" {
-            split($2, a, ":");
-            print iface, $2
-        }' | while read -r iface ipaddr; do
+        ifconfig | awk '/flags=.*UP/ {iface=$1} /inet / && iface!="lo0:" && iface!~"^tailscale[0-9]+:" && iface!~"^utun[0-9]+:" {split($2, a, ":"); print iface, $2}' | while read -r iface ipaddr; do
             iface_clean=$(echo "$iface" | sed 's/://')
+            ap_label=""
             if echo "$wifi_ifaces" | grep -wq "$iface_clean"; then
-                printf "\033[0;36m%s\033[0m - \033[0;32m%s\033[0m (\033[0;36mWi-Fi\033[0m)\n" "$iface_clean" "$ipaddr"
+                printf "\033[0;36m%s\033[0m - \033[0;32m%s\033[0m (\033[0;36mWi-Fi\033[0m)%s\n" "$iface_clean" "$ipaddr" "$ap_label"
             else
                 speed=$(ifconfig "$iface_clean" 2>/dev/null | awk -F': ' '/media: / {print $2}' | awk '{print $2}' | head -n1)
                 [ -z "$speed" ] && speed="Unknown"
@@ -36,9 +45,21 @@ display_interfaces() {
                 else
                     speed_disp="$speed"
                 fi
-                printf "\033[0;36m%s\033[0m - \033[0;32m%s\033[0m (\033[0;36mEthernet\033[0m, \033[0;36m%s\033[0m)\n" "$iface_clean" "$ipaddr" "$speed_disp"
+                printf "\033[0;36m%s\033[0m - \033[0;32m%s\033[0m (\033[0;36mEthernet\033[0m, \033[0;36m%s\033[0m)%s\n" "$iface_clean" "$ipaddr" "$speed_disp" "$ap_label"
             fi
         done
+        # If br0 exists, show it and the bridged interfaces in the requested format
+        if ifconfig br0 >/dev/null 2>&1; then
+            br0_ip=$(ifconfig br0 2>/dev/null | awk '/inet / {print $2}')
+            [ -z "$br0_ip" ] && br0_ip="No IP"
+            #printf "\033[0;36m%s\033[0m - \033[0;32m%s\033[0m (\033[0;36mAccess Point Bridge\033[0m)\n" "br0" "$br0_ip"
+            if ifconfig eth0 >/dev/null 2>&1; then
+                printf "\033[0;36meth0\033[0m - \033[0;32mBridged \033[0m(\033[0;36mbr0 Source\033[0m)\n"
+            fi
+            if ifconfig wlan0 >/dev/null 2>&1; then
+                printf "\033[0;36mwlan0\033[0m - \033[0;32mBridged \033[0m(\033[0;36mbr0 Broadcast\033[0m)\n"
+            fi
+        fi
     else
         echo -e "${RED}No supported command found to list interfaces.${NC}"
     fi
@@ -46,121 +67,183 @@ display_interfaces() {
 
 # display_lldp_info: Try to grab LLDP (switch) info if possible
 display_lldp_info() {
+    ap_was_running=0
+    if command -v get_ap_status >/dev/null 2>&1; then
+        if [ "$(get_ap_status)" = "running" ]; then
+            ap_was_running=1
+            echo -e "${YELLOW}Access Point is running. Temporarily disabling AP to gather LLDP info...${NC}"
+            disable_ap
+            echo -e "${YELLOW}Waiting for Access Point to stop...${NC}"
+            sleep 3
+        fi
+    fi
     clear
     show_banner
     echo -e "${BLUE}Connected Switch Information:${NC}"
-    if command -v lldpctl >/dev/null 2>&1; then
-        lldp_output=$(lldpctl 2>/dev/null)
-        if [ -z "$lldp_output" ]; then
-            echo -e "${RED}No LLDP information found. Please ensure lldpd is running and LLDP is enabled on your switch.${NC}"
-        else
-            switch_name=$(echo "$lldp_output" | grep -i "SysName" | head -n1 | awk -F': ' '{print $2}' | xargs)
-            mgmt_ip=$(echo "$lldp_output" | grep -i "MgmtIP" | head -n1 | awk -F': ' '{print $2}' | xargs)
-            port=$(echo "$lldp_output" | grep -i "PortDescr" | head -n1 | awk -F': ' '{print $2}' | xargs)
-            link_speed=$(echo "$lldp_output" | grep -i "MAU oper type" | head -n1 | awk -F': ' '{print $2}' | xargs)
-            local_iface=$(echo "$lldp_output" | grep -m1 -E '^Interface:' | awk -F'[:,]' '{print $2}' | xargs)
-            if [[ "$(uname -s)" == "Darwin" ]]; then
-                vlans=$(echo "$lldp_output" | grep -E '^\s*VLAN:' | while read -r line; do
-                    vlan_id=$(echo "$line" | awk -F'[:,]' '{print $2}' | xargs)
-                    pvid=$(echo "$line" | grep -o 'pvid: [^ ]*' | awk '{print $2}')
-                    vlan_name=$(echo "$line" | sed -E 's/.*pvid: (yes|no) ?//;s/^VLAN: [^,]+, pvid: (yes|no) ?//')
-                    if [ "$pvid" = "yes" ]; then
-                        echo -e "\033[0;32m$vlan_id${vlan_name:+ $vlan_name}\033[0m"
-                    else
-                        echo "$vlan_id${vlan_name:+ $vlan_name}"
-                    fi
-                done | awk '!a[$0]++' | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
-            else
-                vlans=$(echo "$lldp_output" | grep -i "^[[:space:]]*VLAN:" | while read -r line; do
-                    vlan_id=$(echo "$line" | awk -F'[:,]' '{print $2}' | xargs)
-                    pvid=$(echo "$line" | grep -o 'pvid: [^ ]*' | awk '{print $2}')
-                    vlan_name=$(echo "$line" | sed -E 's/.*pvid: (yes|no) ?//;s/^VLAN: [^,]+, pvid: (yes|no) ?//')
-                    if [ "$pvid" = "yes" ]; then
-                        echo -e "\033[0;32m$vlan_id${vlan_name:+ $vlan_name}\033[0m"
-                    else
-                        echo "$vlan_id${vlan_name:+ $vlan_name}"
-                    fi
-                done | awk '!a[$0]++' | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
-            fi
-            has_pvid_vlan=$(echo "$lldp_output" | grep -E '^[[:space:]]*VLAN:' | grep -q 'pvid: yes' && echo 1 || echo 0)
-            if { [ -z "$switch_name" ] || [ "$switch_name" = "Unknown" ]; } && \
-               { [ -z "$mgmt_ip" ] || [ "$mgmt_ip" = "Unknown" ]; } && \
-               { [ -z "$port" ] || [ "$port" = "Unknown" ]; }; then
-                if pgrep lldpd >/dev/null 2>&1; then
-                    echo -e "${RED}No valid LLDP information received. lldpd is running, but no LLDP data was found. Please ensure LLDP is enabled on your switch and the device is connected.${NC}"
-                else
-                    echo -e "${YELLOW}lldpd service is not running. Attempting to start it...${NC}"
-                    if [[ "$(uname -s)" == "Darwin" ]]; then
-                        sudo brew services start lldpd
-                    else
-                        sudo systemctl start lldpd || sudo service lldpd start
-                    fi
-                    sleep 2
-                    if pgrep lldpd >/dev/null 2>&1; then
-                        lldp_output=$(lldpctl 2>/dev/null)
-                        switch_name=$(echo "$lldp_output" | grep -i "SysName" | head -n1 | awk -F': ' '{print $2}' | xargs)
-                        mgmt_ip=$(echo "$lldp_output" | grep -i "MgmtIP" | head -n1 | awk -F': ' '{print $2}' | xargs)
-                        port=$(echo "$lldp_output" | grep -i "PortDescr" | head -n1 | awk -F': ' '{print $2}' | xargs)
-                        link_speed=$(echo "$lldp_output" | grep -i "MAU oper type" | head -n1 | awk -F': ' '{print $2}' | xargs)
-                        local_iface=$(echo "$lldp_output" | grep -m1 -E '^Interface:' | awk -F'[:,]' '{print $2}' | xargs)
-                        if [ -n "$switch_name" ] || [ -n "$mgmt_ip" ] || [ -n "$port" ]; then
-                            if [[ "$(uname -s)" == "Darwin" ]]; then
-                                vlans=$(echo "$lldp_output" | grep -E '^\s*VLAN:' | while read -r line; do
-                                    vlan_id=$(echo "$line" | awk -F'[:,]' '{print $2}' | xargs)
-                                    pvid=$(echo "$line" | grep -o 'pvid: [^ ]*' | awk '{print $2}')
-                                    vlan_name=$(echo "$line" | sed -E 's/.*pvid: (yes|no) ?//;s/^VLAN: [^,]+, pvid: (yes|no) ?//')
-                                    if [ "$pvid" = "yes" ]; then
-                                        echo -e "\033[0;32m$vlan_id${vlan_name:+ $vlan_name}\033[0m"
-                                    else
-                                        echo "$vlan_id${vlan_name:+ $vlan_name}"
-                                    fi
-                                done | awk '!a[$0]++' | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
-                            else
-                                vlans=$(echo "$lldp_output" | grep -i "^[[:space:]]*VLAN:" | while read -r line; do
-                                    vlan_id=$(echo "$line" | awk -F'[:,]' '{print $2}' | xargs)
-                                    pvid=$(echo "$line" | grep -o 'pvid: [^ ]*' | awk '{print $2}')
-                                    vlan_name=$(echo "$line" | sed -E 's/.*pvid: (yes|no) ?//;s/^VLAN: [^,]+, pvid: (yes|no) ?//')
-                                    if [ "$pvid" = "yes" ]; then
-                                        echo -e "\033[0;32m$vlan_id${vlan_name:+ $vlan_name}\033[0m"
-                                    else
-                                        echo "$vlan_id${vlan_name:+ $vlan_name}"
-                                    fi
-                                done | awk '!a[$0]++' | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
-                            fi
-                            echo -e "${BLUE}Local Interface:${NC} ${local_iface:-Unknown}"
-                            echo -e "${BLUE}Switch Name:${NC} ${switch_name:-Unknown}"
-                            echo -e "${BLUE}Management IP:${NC} ${mgmt_ip:-Unknown}"
-                            echo -e "${BLUE}Connected Port:${NC} ${port:-Unknown}"
-                            echo -e "${BLUE}Negotiated Link Speed:${NC} ${link_speed:-Unknown}"
-                            echo -e "${BLUE}VLAN(s):${NC} ${vlans:-Unknown}"
-                            if [ "$has_pvid_vlan" -eq 1 ]; then
-                                echo -e "${GREEN}Note:${NC} The VLAN in green is the PVID (untagged) VLAN."
-                            fi
-                        else
-                            echo -e "${RED}Failed to get valid LLDP information after starting lldpd. Please check your network and switch configuration.${NC}"
-                        fi
-                    else
-                        echo -e "${RED}Failed to start lldpd service. Please check your installation.${NC}"
-                    fi
-                fi
-                return
-            fi
-            echo -e "${BLUE}Local Interface:${NC} ${local_iface:-Unknown}"
-            echo -e "${BLUE}Switch Name:${NC} ${switch_name:-Unknown}"
-            echo -e "${BLUE}Management IP:${NC} ${mgmt_ip:-Unknown}"
-            echo -e "${BLUE}Connected Port:${NC} ${port:-Unknown}"
-            echo -e "${BLUE}Negotiated Link Speed:${NC} ${link_speed:-Unknown}"
-            echo -e "${BLUE}VLAN(s):${NC} ${vlans:-Unknown}"
-            if [ "$has_pvid_vlan" -eq 1 ]; then
-                echo -e "${GREEN}Note:${NC} The VLAN in green is the PVID (untagged) VLAN."
-            fi
-        fi
-    else
-        echo -e "${RED}Unable to locate the lldpctl command.${NC}"
+    if ! command -v lldpctl >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
+        echo -e "${RED}Unable to locate the lldpctl or jq command.${NC}"
+        echo -e "${GREEN}Press any key to continue...${NC}"
+        read -n 1 -s
+        [ "$ap_was_running" -eq 1 ] && enable_ap
+        return
     fi
-    echo ""
-    echo -e "${GREEN}Press any key to continue...${NC}"
-    read -n 1 -s
+    lldp_json=$(lldpctl -f json 2>/dev/null)
+    if [ -z "$lldp_json" ]; then
+        echo -e "${RED}No LLDP information found. Please ensure lldpd is running and LLDP is enabled on your switch.${NC}"
+        read -n 1 -s
+        [ "$ap_was_running" -eq 1 ] && enable_ap
+        return
+    fi
+    HIDE_TAILSCALE_LLDP=${HIDE_TAILSCALE_LLDP:-disabled}
+    # Helper to check if IP is in 100.64.0.0/10
+    is_tailscale_ip() {
+        ip=$1
+        IFS=. read -r o1 o2 o3 o4 <<< "$ip"
+        if [ "$o1" -eq 100 ] && [ "$o2" -ge 64 ] && [ "$o2" -le 127 ]; then
+            return 0
+        fi
+        return 1
+    }
+    # Parse all neighbors (no --args/--named)
+    mapfile -t neighbors < <(echo "$lldp_json" | jq -c '
+        .lldp.interface | to_entries[] | . as $iface_entry |
+        .value.chassis | to_entries[] | 
+        {iface: $iface_entry.key, chassis_name: .key, chassis: .value, port: $iface_entry.value.port, vlan: $iface_entry.value.vlan}
+    ')
+    tailscale_neighbors=()
+    nontailscale_neighbors=()
+    for neighbor in "${neighbors[@]}"; do
+        mgmtips=$(echo "$neighbor" | jq -r '.chassis["mgmt-ip"] | if type=="array" then .[] else . end')
+        is_tailscale=0
+        for ip in $mgmtips; do
+            if [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                if is_tailscale_ip "$ip"; then
+                    is_tailscale=1
+                fi
+            fi
+        done
+        if [ $is_tailscale -eq 1 ]; then
+            tailscale_neighbors+=("$neighbor")
+        else
+            nontailscale_neighbors+=("$neighbor")
+        fi
+    done
+    display_list=()
+    if [ "$HIDE_TAILSCALE_LLDP" = "enabled" ]; then
+        if [ ${#nontailscale_neighbors[@]} -eq 0 ]; then
+            echo -e "${YELLOW}No non-Tailscale LLDP neighbors found. Only Tailscale neighbors are present.${NC}"
+            echo -e "${GREEN}Press any key to return to the menu...${NC}"
+            read -n 1 -s
+            [ "$ap_was_running" -eq 1 ] && enable_ap
+            return
+        fi
+        display_list=("${nontailscale_neighbors[@]}")
+    else
+        display_list=("${nontailscale_neighbors[@]}" "${tailscale_neighbors[@]}")
+    fi
+    total_neighbors=${#display_list[@]}
+    if [ $total_neighbors -eq 0 ]; then
+        echo -e "${YELLOW}No valid LLDP neighbors found.${NC}"
+        echo -e "${GREEN}Press any key to return to the menu...${NC}"
+        read -n 1 -s
+        [ "$ap_was_running" -eq 1 ] && enable_ap
+        return
+    fi
+    if [ $total_neighbors -eq 1 ]; then
+        i=0
+        show_neighbor=1
+    else
+        i=0
+        show_neighbor=1
+    fi
+    while [ $show_neighbor -eq 1 ]; do
+        neighbor_json="${display_list[$i]}"
+        iface=$(echo "$neighbor_json" | jq -r '.iface')
+        chassis_name=$(echo "$neighbor_json" | jq -r '.chassis_name')
+        sysdescr=$(echo "$neighbor_json" | jq -r '.chassis.descr // "Unknown"')
+        mgmtips=$(echo "$neighbor_json" | jq -r '.chassis["mgmt-ip"] | if type=="array" then .[] else . end')
+        mgmtip4=""
+        mgmtip6=""
+        for ip in $mgmtips; do
+            if [[ "$ip" == *:* ]]; then
+                mgmtip6="$ip"
+            elif [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                mgmtip4="$ip"
+            fi
+        done
+        port_descr=$(echo "$neighbor_json" | jq -r '.port.descr // "Unknown"')
+        link_speed=$(echo "$neighbor_json" | jq -r '.port["auto-negotiation"].current // "Unknown"')
+        vlan_id=$(echo "$neighbor_json" | jq -r '.vlan["vlan-id"] // empty')
+        vlan_name=$(echo "$neighbor_json" | jq -r '.vlan.value // empty')
+        pvid=$(echo "$neighbor_json" | jq -r '.vlan.pvid // false')
+        if [ -n "$vlan_id" ]; then
+            if [ "$pvid" = "true" ]; then
+                vlans="\033[0;32m$vlan_id${vlan_name:+ $vlan_name}\033[0m"
+                has_pvid_vlan=1
+            else
+                vlans="$vlan_id${vlan_name:+ $vlan_name}"
+                has_pvid_vlan=0
+            fi
+        else
+            vlans="Unknown"
+            has_pvid_vlan=0
+        fi
+        clear
+        show_banner
+        if [ $total_neighbors -gt 1 ]; then
+            echo -e "${YELLOW}Multiple neighbors found. Showing $((i+1)) of $total_neighbors${NC}"
+        fi
+        echo -e "${BLUE}Local Interface:${NC} ${iface:-Unknown}"
+        echo -e "${BLUE}Switch Name:${NC} ${chassis_name:-Unknown}"
+        echo -e "${BLUE}Description:${NC} ${sysdescr:-Unknown}"
+        if [ -n "$mgmtip4" ]; then
+            echo -e "${BLUE}Management IP:${NC} ${mgmtip4}"
+        fi
+        if [ -n "$mgmtip6" ]; then
+            echo -e "${BLUE}Management IPv6:${NC} ${mgmtip6}"
+        fi
+        echo -e "${BLUE}Connected Port:${NC} ${port_descr:-Unknown}"
+        echo -e "${BLUE}Negotiated Link Speed:${NC} ${link_speed:-Unknown}"
+        echo -e "${BLUE}VLAN(s):${NC} ${vlans:-Unknown}"
+        if [ "$has_pvid_vlan" -eq 1 ]; then
+            echo -e "${GREEN}Note:${NC} The VLAN in green is the PVID (untagged) VLAN."
+        fi
+        echo ""
+        if [ $total_neighbors -eq 1 ]; then
+            echo -e "${GREEN}Press any key to continue...${NC}"
+            read -n 1 -s
+            show_neighbor=0
+        else
+            prompt="[n]ext, [p]revious, [q]uit: "
+            if [ $i -eq 0 ]; then
+                prompt="[n]ext, [q]uit: "
+            elif [ $i -eq $((total_neighbors-1)) ]; then
+                prompt="[p]revious, [q]uit: "
+            fi
+            read -n 1 -p "$prompt" navkey
+            echo
+            case "$navkey" in
+                n|N)
+                    if [ $i -lt $((total_neighbors-1)) ]; then
+                        i=$((i+1))
+                    fi
+                    ;;
+                p|P)
+                    if [ $i -gt 0 ]; then
+                        i=$((i-1))
+                    fi
+                    ;;
+                q|Q)
+                    show_neighbor=0
+                    ;;
+                *)
+                    # ignore other keys
+                    ;;
+            esac
+        fi
+    done
+    [ "$ap_was_running" -eq 1 ] && enable_ap
+    return
 }
 
 # display_arp_table: Print out the ARP table in a readable way

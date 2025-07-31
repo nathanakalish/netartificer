@@ -9,6 +9,9 @@ print_settings_menu() {
     echo -e "${BLUE}1)${NC} Default SSH Username: ${GREEN}$SSH_USER${NC}"
     echo -e "${BLUE}2)${NC} Logging: ${GREEN}$LOGGING${NC}"
     echo -e "${BLUE}3)${NC} Log File: ${GREEN}$LOG_FILENAME${NC}"
+    echo -e "${BLUE}4)${NC} AP SSID: ${GREEN}$AP_SSID${NC}"
+    echo -e "${BLUE}5)${NC} AP Passphrase: ${GREEN}$AP_PASSPHRASE${NC}"
+    echo -e "${BLUE}6)${NC} Hide Tailscale LLDP Neighbors: ${GREEN}${HIDE_TAILSCALE_LLDP:-disabled}${NC}"
     echo -e "${BLUE}0)${NC} Go Back"
     echo ""
 }
@@ -99,6 +102,62 @@ configure_settings() {
                     fi
                 done
                 source "$CONFIG_FILE" # Reload the config file to update the LOG_FILENAME variable.
+                ;;
+            4)
+                show_banner
+                while true; do
+                    read -e -rp "Enter new AP SSID: " new_ssid
+                    [ "$new_ssid" = "qq" ] && break
+                    if [[ -n "$new_ssid" ]]; then
+                        sed -i '' "s/^AP_SSID=.*/AP_SSID=\"$new_ssid\"/" "$CONFIG_FILE"
+                        echo -e "${GREEN}AP SSID updated to $new_ssid.${NC}"
+                        sleep 2
+                        break
+                    else
+                        echo -e "${RED}SSID cannot be empty.${NC}"
+                    fi
+                done
+                source "$CONFIG_FILE"
+                ;;
+            5)
+                show_banner
+                while true; do
+                    read -e -rp "Enter new AP Passphrase: " new_pass
+                    [ "$new_pass" = "qq" ] && break
+                    if [[ -n "$new_pass" ]]; then
+                        sed -i '' "s/^AP_PASSPHRASE=.*/AP_PASSPHRASE=\"$new_pass\"/" "$CONFIG_FILE"
+                        echo -e "${GREEN}AP Passphrase updated.${NC}"
+                        sleep 2
+                        break
+                    else
+                        echo -e "${RED}Passphrase cannot be empty.${NC}"
+                    fi
+                done
+                source "$CONFIG_FILE"
+                ;;
+            6)
+                show_banner
+                while true; do
+                    read -e -rp "Hide Tailscale LLDP Neighbors? (y/n): " yn_hide
+                    [ "$yn_hide" = "qq" ] && break
+                    case $yn_hide in
+                        y|Y)
+                            new_hide="enabled" ;;
+                        n|N)
+                            new_hide="disabled" ;;
+                        *)
+                            clear
+                            print_settings_menu
+                            echo -e "${RED}Please enter 'y' or 'n'.${NC}"
+                            continue ;;
+                    esac
+                    sed -i '' "s/^HIDE_TAILSCALE_LLDP=.*/HIDE_TAILSCALE_LLDP=\"$new_hide\"/" "$CONFIG_FILE" || echo "HIDE_TAILSCALE_LLDP=\"$new_hide\"" >> "$CONFIG_FILE"
+                    HIDE_TAILSCALE_LLDP="$new_hide"
+                    echo -e "${GREEN}Hide Tailscale LLDP Neighbors set to $new_hide.${NC}"
+                    sleep 2
+                    break
+                done
+                source "$CONFIG_FILE"
                 ;;
             0)
                 # Exit the settings menu to go back to the main menu.

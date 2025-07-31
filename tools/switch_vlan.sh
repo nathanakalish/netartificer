@@ -3,15 +3,37 @@
 
 # Assumes: LOGGING, LOG_FILE, SSH_USER, show_banner, log, and color vars are sourced from main script
 
-# Helper: Grab LLDP info and pull out the details we care about
+# Helper: Grab LLDP info and pull out the details we care about (using lldpctl -f json)
 get_lldp_info() {
-    local lldp_info lldp_name lldp_ip lldp_port lldp_vendor
-    lldp_info=$(lldpctl 2>/dev/null)
-    lldp_name=$(echo "$lldp_info" | grep -i "SysName" | head -n1 | awk -F': ' '{print $2}' | xargs)
-    lldp_ip=$(echo "$lldp_info" | grep -i "MgmtIP" | head -n1 | awk -F': ' '{print $2}' | xargs)
-    lldp_port=$(echo "$lldp_info" | grep -i "PortDescr" | head -n1 | awk -F': ' '{print $2}' | xargs)
-    lldp_vendor=$(echo "$lldp_info" | grep -i "SysDescr" | awk -F': ' '{print $2}' | grep -i -E "Cisco|Aruba|Netgear" | head -n1 | awk '{print $1}')
-    echo "$lldp_name|$lldp_ip|$lldp_port|$lldp_vendor"
+    local lldp_json lldp_name lldp_ip lldp_port lldp_vendor
+    lldp_json=$(lldpctl -f json 2>/dev/null)
+    if [ -z "$lldp_json" ]; then
+        echo "|||"; return
+    fi
+    # Find the first non-tailscale neighbor
+    while IFS= read -r neighbor; do
+        lldp_name=$(echo "$neighbor" | jq -r '.chassis_name')
+        lldp_ip=$(echo "$neighbor" | jq -r '.chassis["mgmt-ip"] | if type=="array" then .[0] else . end // ""')
+        lldp_port=$(echo "$neighbor" | jq -r '.port.descr // ""')
+        lldp_vendor=$(echo "$neighbor" | jq -r '.chassis.descr // ""' | grep -oE 'Cisco|Aruba|Netgear' | head -n1)
+        # Skip Tailscale IPs
+        if [[ "$lldp_ip" =~ ^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\. ]]; then
+            continue
+        fi
+        echo "$lldp_name|$lldp_ip|$lldp_port|$lldp_vendor"
+        return
+    done < <(echo "$lldp_json" | jq -c '.lldp.interface | to_entries[] | . as $iface_entry | .value.chassis | to_entries[] | {iface: $iface_entry.key, chassis_name: .key, chassis: .value, port: $iface_entry.value.port, vlan: $iface_entry.value.vlan}')
+    # If only Tailscale neighbors, just return the first
+    neighbor=$(echo "$lldp_json" | jq -c '.lldp.interface | to_entries[] | . as $iface_entry | .value.chassis | to_entries[] | {iface: $iface_entry.key, chassis_name: .key, chassis: .value, port: $iface_entry.value.port, vlan: $iface_entry.value.vlan}' | head -n1)
+    if [ -n "$neighbor" ]; then
+        lldp_name=$(echo "$neighbor" | jq -r '.chassis_name')
+        lldp_ip=$(echo "$neighbor" | jq -r '.chassis["mgmt-ip"] | if type=="array" then .[0] else . end // ""')
+        lldp_port=$(echo "$neighbor" | jq -r '.port.descr // ""')
+        lldp_vendor=$(echo "$neighbor" | jq -r '.chassis.descr // ""' | grep -oE 'Cisco|Aruba|Netgear' | head -n1)
+        echo "$lldp_name|$lldp_ip|$lldp_port|$lldp_vendor"
+        return
+    fi
+    echo "|||"
 }
 
 # Print a nice banner with whatever info we've got so far
