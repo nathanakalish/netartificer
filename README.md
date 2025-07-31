@@ -1,6 +1,6 @@
 # NetArtificer
 
-**Version 2.1**
+**Version 2.5**
 
 Artificers use ingenuity and magic to unlock extraordinary capabilities in ~~objects~~ network switches.
 

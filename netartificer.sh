@@ -10,7 +10,7 @@ YELLOW='\033[1;33m'  # Yellow for warnings or user input requests.
 RED='\033[0;31m'     # Red for bad things.
 NC='\033[0m'         # Default color for the terminal.
 
-VERSION="2.4" # Script version. Used in banner and the upcoming updater.
+VERSION="2.5" # Script version. Used in banner and the upcoming updater.
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" # Directory of the script.
 TOOLS_DIR="$SCRIPT_DIR/tools" # Directory containing utility scripts.
 CONFIG_FILE="$SCRIPT_DIR/settings.conf" # Contains user settings.
@@ -403,16 +403,8 @@ while true; do
         7)
             if [ "$ap_status" = "running" ]; then
                 disable_ap
-                show_banner
-                echo -e "${GREEN}Access Point disabled."
-                echo -e "${GREEN}Press any key to continue...${NC}"
-                read -n 1 -s
             else
                 enable_ap
-                show_banner
-                echo -e "${GREEN}Access Point enabled. SSID: '${NC}$AP_SSID${GREEN}' Pass: '${NC}$AP_PASSPHRASE${GREEN}'${NC}"
-                echo -e "${GREEN}Press any key to continue...${NC}"
-                read -n 1 -s
             fi
             ;;
         8)

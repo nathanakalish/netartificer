@@ -33,19 +33,47 @@ get_ap_pid() {
     fi
 }
 
+# Check if running on a Raspberry Pi with onboard Wi-Fi
+is_raspberry_pi() {
+    [[ -f /proc/device-tree/model ]] && grep -q "Raspberry Pi" /proc/device-tree/model
+}
+
+has_onboard_wifi() {
+    # Check if wlan0 exists and uses the brcmfmac driver (used by onboard Broadcom Wi-Fi)
+    if [[ -d /sys/class/net/wlan0 ]]; then
+        driver=$(readlink -f /sys/class/net/wlan0/device/driver 2>/dev/null)
+        if [[ "$driver" == *"brcmfmac"* ]]; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
 enable_ap() {
     show_banner
+    if ! is_raspberry_pi || ! has_onboard_wifi; then
+        echo -e "${RED}Access Point feature is only supported on a Raspberry Pi with onboard Wi-Fi.${NC}"
+        echo -e "${GREEN}Press any key to return to the menu...${NC}"
+        read -n 1 -s
+        return
+    fi
     # Interface config file for persistence
     AP_IFACES_FILE="/tmp/netartificer_ap_ifaces"
     # Load previous ifaces if available
     if [ -f "$AP_IFACES_FILE" ]; then
         source "$AP_IFACES_FILE"
     fi
-    # List interfaces (excluding lo and tailscale)
+    # List interfaces (excluding lo, tailscale, and wlan0)
     get_ifaces() {
-        ip -o link show | awk -F': ' '{print $2}' | grep -vE '^(lo|tailscale[0-9]+|utun[0-9]+)$'
+        ip -o link show | awk -F': ' '{print $2}' | grep -vE '^(lo|tailscale[0-9]+|utun[0-9]+|wlan0)$'
     }
     all_ifaces=( $(get_ifaces) )
+    if [ ${#all_ifaces[@]} -eq 0 ]; then
+        echo -e "${RED}No available wired interfaces found.${NC}"
+        echo -e "${GREEN}Press any key to return to the menu...${NC}"
+        read -n 1 -s
+        return
+    fi
     # Prompt for wired interface
     while true; do
         show_banner
@@ -64,12 +92,15 @@ enable_ap() {
             sleep 3
         fi
     done
+    # For now, always use wlan0 as the wireless interface
+    WLAN_IFACE="wlan0"
+    # Commented out wireless interface selection prompt
+    : '
     # Remove selected wired iface from list for wireless selection
     avail_wl_ifaces=()
     for iface in "${all_ifaces[@]}"; do
         [[ "$iface" != "$ETH_IFACE" ]] && avail_wl_ifaces+=("$iface")
     done
-    # Prompt for wireless interface
     while true; do
         show_banner
         echo -e "${BLUE}Available interfaces:${NC}"
@@ -87,6 +118,7 @@ enable_ap() {
             sleep 3
         fi
     done
+    '
     # Save selected interfaces for next run
     echo "ETH_IFACE=\"$ETH_IFACE\"" > "$AP_IFACES_FILE"
     echo "WLAN_IFACE=\"$WLAN_IFACE\"" >> "$AP_IFACES_FILE"
@@ -147,6 +179,10 @@ EOF
     HAPID=$!
     set_ap_status running $HAPID
     log "Access Point enabled (SSID: $SSID, PID: $HAPID)"
+    show_banner
+    echo -e "${GREEN}Access Point enabled. SSID: '${NC}$AP_SSID${GREEN}' Pass: '${NC}$AP_PASSPHRASE${GREEN}'${NC}"
+    echo -e "${GREEN}Press any key to continue...${NC}"
+    read -n 1 -s
 }
 
 disable_ap() {
@@ -171,6 +207,10 @@ disable_ap() {
     sudo ip link set "$WLAN_IFACE" up > /dev/null 2>&1
     set_ap_status not_running
     log "Access Point disabled."
+    show_banner
+    echo -e "${GREEN}Access Point disabled."
+    echo -e "${GREEN}Press any key to continue...${NC}"
+    read -n 1 -s
 }
 
 # Export for main script

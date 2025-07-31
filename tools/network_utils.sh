@@ -114,7 +114,14 @@ display_lldp_info() {
             $iface_entry.value.chassis | to_entries[] |
             {iface: $iface_entry.key, chassis_name: .key, chassis: .value, port: $iface_entry.value.port, vlan: $iface_entry.value.vlan}
         ) | .[]
-    ')
+    ' 2>/dev/null)
+    if [ ${#neighbors[@]} -eq 0 ]; then
+        echo -e "${YELLOW}No valid LLDP neighbors found.${NC}"
+        echo -e "${GREEN}Press any key to return to the menu...${NC}"
+        read -n 1 -s
+        [ "$ap_was_running" -eq 1 ] && enable_ap
+        return
+    fi
     tailscale_neighbors=()
     nontailscale_neighbors=()
     for neighbor in "${neighbors[@]}"; do
