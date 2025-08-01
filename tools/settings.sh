@@ -25,7 +25,8 @@ configure_settings() {
     echo -e "${BLUE}Settings Configuration:${NC}"
     while true; do
         print_settings_menu
-        read -e -rp "Choice: " setting_choice
+        echo -ne "${BLUE}Enter your choice [${NC}0${BLUE}-${NC}9${BLUE}]: ${NC}"
+        read -e setting_choice
         case $setting_choice in
             1)
                 show_banner

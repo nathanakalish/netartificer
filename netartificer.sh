@@ -202,7 +202,8 @@ network_utilities_menu() {
         echo -e "${BLUE}9)${NC} SNMP Monitoring"
         echo -e "${BLUE}0)${NC} Go Back"
         echo ""
-        read -e -p $'Enter your choice [0-9]: ' util_choice
+        echo -ne "${BLUE}Enter your choice [${NC}0${BLUE}-${NC}9${BLUE}]: ${NC}"
+        read -e choice
         case $util_choice in
             1)
                 ping_host; log "Executed ping utility.";;
@@ -386,7 +387,8 @@ while true; do
     echo -e "${BLUE}9)${NC} Update NetArtificer"
     echo -e "${BLUE}0)${NC} Exit"
     echo ""
-    read -e -rp "Enter your choice [0-9]: " choice
+    echo -ne "${BLUE}Enter your choice [${NC}0${BLUE}-${NC}9${BLUE}]: ${NC}"
+    read -e choice
     case $choice in
         1)
             display_lldp_info; log "Displayed LLDP information.";;
