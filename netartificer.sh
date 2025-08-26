@@ -10,7 +10,7 @@ YELLOW='\033[1;33m'  # Yellow for warnings or user input requests.
 RED='\033[0;31m'     # Red for bad things.
 NC='\033[0m'         # Default color for the terminal.
 
-VERSION="2.5" # Script version. Used in banner and the upcoming updater.
+VERSION="2.6" # Script version. Used in banner and the upcoming updater.
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" # Directory of the script.
 TOOLS_DIR="$SCRIPT_DIR/tools" # Directory containing utility scripts.
 CONFIG_FILE="$SCRIPT_DIR/settings.conf" # Contains user settings.
@@ -169,16 +169,57 @@ check_dependencies
 
 # Ensure lldpd is enabled and running
 if command -v lldpd >/dev/null 2>&1; then
-    if command -v systemctl >/dev/null 2>&1; then
-        sudo systemctl enable lldpd >/dev/null 2>&1
-        sudo systemctl start lldpd >/dev/null 2>&1
-    elif command -v service >/dev/null 2>&1; then
-        sudo service lldpd start >/dev/null 2>&1
-    fi
-    # Fallback: try to start if not running
+    # Check if lldpd is already running
     if ! pgrep lldpd >/dev/null 2>&1; then
-        sudo lldpd >/dev/null 2>&1 &
+        echo -e "${YELLOW}lldpd is not currently running.${NC}"
+        echo -e "${BLUE}LLDP is used for switch auto-detection and network discovery.${NC}"
+        while true; do
+            read -e -rp "Would you like to start lldpd? (Y/n): " start_lldp
+            start_lldp=${start_lldp:-y}
+            case "$start_lldp" in
+                y|Y)
+                    echo -e "${BLUE}Starting lldpd...${NC}"
+                    if command -v systemctl >/dev/null 2>&1; then
+                        sudo systemctl enable lldpd >/dev/null 2>&1
+                        sudo systemctl start lldpd >/dev/null 2>&1
+                    elif command -v service >/dev/null 2>&1; then
+                        sudo service lldpd start >/dev/null 2>&1
+                    else
+                        # Fallback: start lldpd directly
+                        sudo lldpd >/dev/null 2>&1 &
+                    fi
+                    sleep 2  # Give it a moment to start
+                    
+                    # Verify lldpd started successfully
+                    if pgrep lldpd >/dev/null 2>&1; then
+                        echo -e "${GREEN}lldpd started successfully.${NC}"
+                        sleep 1
+                        clear
+                    else
+                        echo -e "${RED}Failed to start lldpd. Some features may not work properly.${NC}"
+                        echo -e "${GREEN}Press any key to continue anyway...${NC}"
+                        read -n 1 -s
+                        clear
+                    fi
+                    break
+                    ;;
+                n|N)
+                    echo -e "${YELLOW}Exiting NetArtificer. lldpd is required for full functionality.${NC}"
+                    exit 0
+                    ;;
+                *)
+                    echo -e "${RED}Please enter 'y' or 'n'.${NC}"
+                    ;;
+            esac
+        done
     fi
+else
+    echo -e "${RED}lldpd is not installed.${NC}"
+    echo -e "${BLUE}LLDP is required for switch auto-detection and network discovery.${NC}"
+    echo -e "${YELLOW}Please install lldpd and run the script again.${NC}"
+    echo -e "${GREEN}Press any key to exit...${NC}"
+    read -n 1 -s
+    exit 1
 fi
 
 # Function: network_utilities_menu

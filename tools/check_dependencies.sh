@@ -7,7 +7,7 @@ OS_TYPE="$(uname -s)"
 if [[ "$OS_TYPE" == "Darwin" ]]; then
     DEPS=("lldpd" "ssh" "arp" "awk" "sed" "grep" "ping" "dig" "sshpass" "wakeonlan" "speedtest-cli" "nmap" "mtr" "snmpget" "whois")
 else
-    DEPS=("lldpd" "ssh" "arp" "awk" "sed" "grep" "ping" "dig" "sshpass" "wakeonlan" "speedtest-cli" "nmap" "mtr" "snmpget" "whois" "brctl" "hostapd")
+    DEPS=("lldpd" "ssh" "arp" "awk" "sed" "grep" "ping" "dig" "sshpass" "wakeonlan" "speedtest-cli" "nmap" "mtr" "snmpget" "whois" "brctl" "hostapd" "jq")
 fi
 
 check_dependencies() {
