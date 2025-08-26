@@ -204,7 +204,7 @@ network_utilities_menu() {
         echo ""
         echo -ne "${BLUE}Enter your choice [${NC}0${BLUE}-${NC}9${BLUE}]: ${NC}"
         read -e choice
-        case $util_choice in
+        case $choice in
             1)
                 ping_host; log "Executed ping utility.";;
             2)
